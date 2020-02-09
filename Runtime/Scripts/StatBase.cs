@@ -43,11 +43,13 @@ namespace Waker.StatSystem
 		/// <summary>
 		/// Modifier Container
 		/// </summary>
-		private readonly SortedSet<IStatModifier<T>> modifiers;
+		private readonly List<IStatModifier<T>> modifiers;
+		private readonly List<IStatEnhancer<T>> enhancers;
 
 		public StatBase()
 		{
-			modifiers = new SortedSet<IStatModifier<T>>(ModifierComparer.Instance);
+			modifiers = new List<IStatModifier<T>>();
+			enhancers = new List<IStatEnhancer<T>>();
 		}
 
 		public StatBase(T property, double baseValue) : this()
@@ -95,6 +97,8 @@ namespace Waker.StatSystem
 			}
 		}
 
+		public IStatModifier<T> BaseModifier { get; set; } = null;
+
 		public event System.Action<IStat<T>> valueChanged;
 
 		public void AddModifier(IStatModifier<T> modifier)
@@ -110,6 +114,7 @@ namespace Waker.StatSystem
 			}
 
 			modifiers.Add(modifier);
+			modifiers.Sort(ModifierComparer.Instance);
 
 			isDirty = true;
 			valueChanged?.Invoke(this);
@@ -128,9 +133,18 @@ namespace Waker.StatSystem
 			return false;
 		}
 
+		public void ClearModifiers()
+		{
+			modifiers.Clear();
+
+			isDirty = true;
+		}
+
 		private double CalculateValue()
 		{
 			double modifiedValue = baseValue;
+
+			BaseModifier?.Modify(ref modifiedValue, baseValue);
 
 			foreach (var modifier in modifiers)
 			{
